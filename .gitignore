@@ -1,0 +1,37 @@
+# Dependencias de Node
+node_modules/
+
+# Carpetas de configuración de Expo
+.expo/
+dist/
+web-build/
+
+# Archivos de emuladores y configuraciones locales de Metro
+.metro/
+*.jks
+*.p12
+*.key
+*.keystore
+
+# Compilaciones nativas generadas localmente (por si llegás a usar npx expo prebuild)
+ios/
+android/
+
+# Variables de entorno y secretos locales
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs de error y del sistema
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Archivos basura del sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
