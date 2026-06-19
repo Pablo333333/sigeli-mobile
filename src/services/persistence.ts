@@ -2,12 +2,37 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEYS = {
   CV: '@sigeli_cv',
+  OFERTAS: '@sigeli_ofertas',
   POSTULACIONES: '@sigeli_postulaciones',
   NOTIFICACIONES: '@sigeli_notificaciones',
   SYNC_QUEUE: '@sigeli_sync_queue',
+  CHAT_MESSAGES: '@sigeli_chat_messages',
+  EVALUACIONES: '@sigeli_evaluaciones',
 };
 
 export const PersistenceService = {
+  // Estado de automatización
+  isSyncAutomated: true,
+
+  // ... existing methods ...
+  async saveChatMessages(chatId: string, messages: any[]) {
+    await AsyncStorage.setItem(`${STORAGE_KEYS.CHAT_MESSAGES}_${chatId}`, JSON.stringify(messages));
+  },
+
+  async getChatMessages(chatId: string) {
+    const data = await AsyncStorage.getItem(`${STORAGE_KEYS.CHAT_MESSAGES}_${chatId}`);
+    return data ? JSON.parse(data) : [];
+  },
+
+  async saveOfertas(data: any) {
+    await AsyncStorage.setItem(STORAGE_KEYS.OFERTAS, JSON.stringify(data));
+  },
+
+  async getOfertas() {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.OFERTAS);
+    return data ? JSON.parse(data) : null;
+  },
+
   async saveCV(data: any) {
     await AsyncStorage.setItem(STORAGE_KEYS.CV, JSON.stringify(data));
   },

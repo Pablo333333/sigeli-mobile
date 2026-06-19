@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import { PersistenceService } from './persistence';
+import * as SecureStore from 'expo-secure-store';
 
 // En desarrollo con Android Emulator, localhost es 10.0.2.2
 // Para iOS o dispositivo físico, usar la IP de la máquina
@@ -15,6 +16,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Interceptor para añadir el token a las peticiones
+api.interceptors.request.use(
+  async (config) => {
+    const token = await SecureStore.getItemAsync('sigeli_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Interceptor para manejar caché offline y cola de sincronización
 api.interceptors.response.use(
@@ -52,10 +67,24 @@ api.interceptors.response.use(
 
       // Si es un POST/PATCH/PUT/DELETE, añadimos a la cola de sincronización
       if (['post', 'patch', 'put', 'delete'].includes(config.method)) {
+        let requestData = config.data;
+        
+        // Si es FormData, no podemos serializarlo directamente a JSON fácilmente
+        // pero para las evaluaciones y CV ya estamos pasando objetos planos a addToSyncQueue
+        // desde los componentes si detectamos que estamos offline.
+        // Aquí solo nos aseguramos de no romper si llega un FormData.
+        try {
+          if (typeof config.data === 'string') {
+            requestData = JSON.parse(config.data);
+          }
+        } catch (e) {
+          console.log('No se pudo parsear data para la cola de sincronización, se guardará como está.');
+        }
+
         await PersistenceService.addToSyncQueue({
           url: config.url,
           method: config.method,
-          data: JSON.parse(config.data),
+          data: requestData,
         });
         // Retornamos una respuesta "exitosa" simulada para que la UI no se rompa
         return { data: { _offline: true }, status: 202, config, headers: {}, statusText: 'Accepted' };
