@@ -48,13 +48,15 @@ export default function Ofertas() {
     try {
       // 1. Intentar cargar de la API
       const response = await api.get('/ofertas');
-      const data = response.data;
+      const data = Array.isArray(response.data) ? response.data : [];
       
       // 2. Cruzar con postulaciones locales para marcar estado
       const localPostulaciones = await PersistenceService.getPostulaciones() || [];
+      const safeLocalPostulaciones = Array.isArray(localPostulaciones) ? localPostulaciones : [];
+
       const updatedData = data.map((o: Oferta) => ({
         ...o,
-        status: localPostulaciones.some((p: any) => p.ofertaId === o.id) ? 'postulado' : 'disponible'
+        status: safeLocalPostulaciones.some((p: any) => p?.ofertaId === o?.id) ? 'postulado' : 'disponible'
       }));
 
       setOfertas(updatedData);
@@ -64,9 +66,10 @@ export default function Ofertas() {
       console.error('Error al cargar ofertas:', error);
       // 3. Fallback a datos locales si falla la red
       const cached = await PersistenceService.getOfertas();
-      if (cached) {
+      if (Array.isArray(cached)) {
         setOfertas(cached);
       } else {
+        setOfertas([]);
         Alert.alert('Error', 'No se pudieron cargar las vacantes. Verifique su conexión.');
       }
     } finally {
@@ -82,8 +85,8 @@ export default function Ofertas() {
     }
 
     // Actualización visual inmediata (Optimistic UI)
-    setOfertas(prev => prev.map(o => 
-      o.id === ofertaId ? { ...o, status: 'postulado' } : o
+    setOfertas(prev => (Array.isArray(prev) ? prev : []).map(o => 
+      o?.id === ofertaId ? { ...o, status: 'postulado' } : o
     ));
 
     try {
@@ -109,14 +112,15 @@ export default function Ofertas() {
 
       // Guardar estado actualizado localmente
       const currentPostulaciones = await PersistenceService.getPostulaciones() || [];
-      await PersistenceService.savePostulaciones([...currentPostulaciones, { ofertaId, status: 'postulado' }]);
+      const safeCurrentPostulaciones = Array.isArray(currentPostulaciones) ? currentPostulaciones : [];
+      await PersistenceService.savePostulaciones([...safeCurrentPostulaciones, { ofertaId, status: 'postulado' }]);
 
     } catch (error) {
       console.error('Error al postular:', error);
       // Revertir cambio visual si falló y no es por falta de red
       if (isOnline) {
-        setOfertas(prev => prev.map(o => 
-          o.id === ofertaId ? { ...o, status: 'disponible' } : o
+        setOfertas(prev => (Array.isArray(prev) ? prev : []).map(o => 
+          o?.id === ofertaId ? { ...o, status: 'disponible' } : o
         ));
         Alert.alert('Error', 'No se pudo procesar la postulación. Intente más tarde.');
       }
@@ -126,36 +130,36 @@ export default function Ofertas() {
   const renderItem = ({ item }: { item: Oferta }) => (
     <View style={styles.offerCard}>
       <View style={styles.offerHeader}>
-        <Text style={styles.offerTitle}>{item.title}</Text>
-        <View style={[styles.tag, item.status === 'postulado' && styles.tagSuccess]}>
-          <Text style={[styles.tagText, item.status === 'postulado' && styles.tagTextSuccess]}>
-            {item.status === 'postulado' ? 'En Proceso' : `${item.daysLeft} días restantes`}
+        <Text style={styles.offerTitle}>{item?.title || 'Sin título'}</Text>
+        <View style={[styles.tag, item?.status === 'postulado' && styles.tagSuccess]}>
+          <Text style={[styles.tagText, item?.status === 'postulado' && styles.tagTextSuccess]}>
+            {item?.status === 'postulado' ? 'En Proceso' : `${item?.daysLeft || 0} días restantes`}
           </Text>
         </View>
       </View>
       
-      <Text style={styles.companyText}>{item.company}</Text>
+      <Text style={styles.companyText}>{item?.company || 'Empresa no especificada'}</Text>
       
       <View style={styles.detailsRow}>
         <View style={styles.detailItem}>
           <Ionicons name="location" size={16} color={Theme.colors.textSecondary} />
-          <Text style={styles.detailText}>{item.location}</Text>
+          <Text style={styles.detailText}>{item?.location || 'Ubicación no disponible'}</Text>
         </View>
         <View style={styles.detailItem}>
           <Ionicons name="cash" size={16} color={Theme.colors.textSecondary} />
-          <Text style={styles.detailText}>{item.salary}</Text>
+          <Text style={styles.detailText}>{item?.salary || 'Sueldo a tratar'}</Text>
         </View>
       </View>
 
       <TouchableOpacity 
         style={[
           styles.applyButton, 
-          item.status === 'postulado' && styles.applyButtonDisabled
+          item?.status === 'postulado' && styles.applyButtonDisabled
         ]}
-        onPress={() => handleApply(item.id)}
-        disabled={item.status === 'postulado'}
+        onPress={() => handleApply(item?.id)}
+        disabled={item?.status === 'postulado'}
       >
-        {item.status === 'postulado' ? (
+        {item?.status === 'postulado' ? (
           <View style={styles.row}>
             <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginRight: 8 }} />
             <Text style={styles.applyButtonText}>Ya Postulaste</Text>

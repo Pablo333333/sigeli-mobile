@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
@@ -28,6 +29,7 @@ interface Message {
 
 export default function VozScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -204,78 +206,80 @@ export default function VozScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={100}
-    >
-      <View style={styles.languageSelector}>
-        <TouchableOpacity
-          style={[styles.langBtn, idioma === 'ES' && styles.langBtnActive]}
-          onPress={() => setIdioma('ES')}
-        >
-          <Text style={[styles.langText, idioma === 'ES' && styles.langTextActive]}>Español</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.langBtn, idioma === 'QU' && styles.langBtnActive]}
-          onPress={() => setIdioma('QU')}
-        >
-          <Text style={[styles.langText, idioma === 'QU' && styles.langTextActive]}>Quechua</Text>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.chatContainer}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-      />
-
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Theme.colors.primary} />
-          <Text style={styles.loadingText}>Procesando...</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <View style={styles.languageSelector}>
+          <TouchableOpacity
+            style={[styles.langBtn, idioma === 'ES' && styles.langBtnActive]}
+            onPress={() => setIdioma('ES')}
+          >
+            <Text style={[styles.langText, idioma === 'ES' && styles.langTextActive]}>Español</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.langBtn, idioma === 'QU' && styles.langBtnActive]}
+            onPress={() => setIdioma('QU')}
+          >
+            <Text style={[styles.langText, idioma === 'QU' && styles.langTextActive]}>Quechua</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      <View style={styles.inputArea}>
-        <TextInput
-          style={styles.input}
-          placeholder="Escribe tu consulta..."
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.chatContainer}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
         />
-        
-        <TouchableOpacity 
-          style={[
-            styles.micButton, 
-            isRecording && styles.micButtonActive,
-            !inputText.trim() && !isRecording && styles.micButtonIdle
-          ]}
-          onPress={inputText.trim() ? () => sendMessage(inputText) : undefined}
-          onPressIn={!inputText.trim() ? startRecording : undefined}
-          onPressOut={!inputText.trim() ? stopRecording : undefined}
-        >
-          <Ionicons 
-            name={inputText.trim() ? "send" : (isRecording ? "stop" : "mic")} 
-            size={24} 
-            color="#fff" 
-          />
-        </TouchableOpacity>
-      </View>
-      
-      {isRecording && (
-        <View style={styles.recordingOverlay}>
-          <View style={styles.recordingPulse}>
-            <Ionicons name="mic" size={48} color="white" />
+
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={Theme.colors.primary} />
+            <Text style={styles.loadingText}>Procesando...</Text>
           </View>
-          <Text style={styles.recordingText}>Escuchando...</Text>
+        )}
+
+        <View style={[styles.inputArea, { paddingBottom: 16 + insets.bottom }]}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe tu consulta..."
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+          />
+          
+          <TouchableOpacity 
+            style={[
+              styles.micButton, 
+              isRecording && styles.micButtonActive,
+              !inputText.trim() && !isRecording && styles.micButtonIdle
+            ]}
+            onPress={inputText.trim() ? () => sendMessage(inputText) : undefined}
+            onPressIn={!inputText.trim() ? startRecording : undefined}
+            onPressOut={!inputText.trim() ? stopRecording : undefined}
+          >
+            <Ionicons 
+              name={inputText.trim() ? "send" : (isRecording ? "stop" : "mic")} 
+              size={24} 
+              color="#fff" 
+            />
+          </TouchableOpacity>
         </View>
-      )}
-    </KeyboardAvoidingView>
+        
+        {isRecording && (
+          <View style={styles.recordingOverlay}>
+            <View style={styles.recordingPulse}>
+              <Ionicons name="mic" size={48} color="white" />
+            </View>
+            <Text style={styles.recordingText}>Escuchando...</Text>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

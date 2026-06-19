@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../src/theme';
 import { useAuth } from '../../src/context/AuthContext';
@@ -30,6 +30,7 @@ interface Message {
 
 export default function ChatScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -182,7 +183,7 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={styles.inputArea}>
+        <View style={[styles.inputArea, { paddingBottom: 12 + insets.bottom }]}>
           <TouchableOpacity style={styles.attachBtn}>
             <Ionicons name="add" size={28} color={Theme.colors.textSecondary} />
           </TouchableOpacity>

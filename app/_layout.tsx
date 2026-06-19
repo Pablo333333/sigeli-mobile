@@ -5,7 +5,7 @@ import { SyncManager } from '../src/services/SyncManager';
 import { SyncIndicator } from '../src/components/SyncIndicator';
 import { AuthProvider } from '../src/context/AuthContext';
 import { useSync } from '../src/hooks/useSync';
-import { NotificationService } from '../src/services/NotificationService';
+import { NotificationService } from '../src/services/notificationService';
 
 const queryClient = new QueryClient();
 
@@ -36,10 +36,6 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    SyncManager.initialize();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

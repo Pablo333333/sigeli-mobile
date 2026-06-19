@@ -16,7 +16,7 @@ import { Audio } from 'expo-av';
 import { PersistenceService } from '../../src/services/persistence';
 import { useAuth } from '../../src/context/AuthContext';
 import NetInfo from '@react-native-community/netinfo';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MultimediaPicker } from '../../src/components/MultimediaPicker';
 import api from '../../src/services/api';
 
@@ -33,6 +33,7 @@ interface EvaluationData {
 
 export default function EvaluacionScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState<EvaluationData>({
     contractOnTime: false,
     dutiesExplained: false,
@@ -178,7 +179,7 @@ export default function EvaluacionScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}>
         <View style={styles.header}>
           <Text style={styles.title}>Evaluación 360°</Text>
           <Text style={styles.subtitle}>Tu opinión nos ayuda a mejorar las condiciones laborales en campo.</Text>

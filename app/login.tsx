@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView, 
   Platform,
   ScrollView,
-  SafeAreaView,
   Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -18,6 +17,7 @@ import api from '../src/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { BiometriaService } from '../src/services/biometria';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -27,6 +27,7 @@ export default function LoginScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkBiometrics();
@@ -132,7 +133,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom }]}>
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Ionicons name="shield-checkmark" size={40} color="white" />

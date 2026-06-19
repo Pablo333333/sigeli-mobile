@@ -5,9 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // En desarrollo con Android Emulator, localhost es 10.0.2.2
 // Para iOS o dispositivo físico, usar la IP de la máquina
-const BASE_URL = Platform.OS === 'android' 
-  ? 'http://10.0.2.2:3000' 
-  : 'http://localhost:3000';
+const BASE_URL = 'http://192.168.0.113:3001';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -69,16 +67,25 @@ api.interceptors.response.use(
       if (['post', 'patch', 'put', 'delete'].includes(config.method)) {
         let requestData = config.data;
         
-        // Si es FormData, no podemos serializarlo directamente a JSON fácilmente
-        // pero para las evaluaciones y CV ya estamos pasando objetos planos a addToSyncQueue
-        // desde los componentes si detectamos que estamos offline.
-        // Aquí solo nos aseguramos de no romper si llega un FormData.
-        try {
-          if (typeof config.data === 'string') {
-            requestData = JSON.parse(config.data);
+        // Manejo especial para FormData: extraer partes para que sea serializable en la cola
+        if (config.data && typeof config.data === 'object' && config.data._parts) {
+          requestData = {};
+          config.data._parts.forEach(([key, value]: [string, any]) => {
+            // Si es un archivo, guardamos solo la URI para la cola
+            if (value && typeof value === 'object' && value.uri) {
+              requestData[`${key}Uri`] = value.uri;
+            } else {
+              requestData[key] = value;
+            }
+          });
+        } else {
+          try {
+            if (typeof config.data === 'string') {
+              requestData = JSON.parse(config.data);
+            }
+          } catch (e) {
+            console.log('No se pudo parsear data para la cola de sincronización, se guardará como está.');
           }
-        } catch (e) {
-          console.log('No se pudo parsear data para la cola de sincronización, se guardará como está.');
         }
 
         await PersistenceService.addToSyncQueue({

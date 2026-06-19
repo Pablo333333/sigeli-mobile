@@ -45,8 +45,9 @@ export const NotificationService = {
         const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         console.log('Expo Push Token:', token);
-      } catch (e) {
-        console.error('Error al obtener token:', e);
+      } catch (e: any) {
+        console.warn("Fallo el token de Expo (posible projectId inválido):", e.message);
+        token = ""; // Retornamos un string vacío para no colgar el flujo
       }
     } else {
       console.log('Debe usar un dispositivo físico para notificaciones push');

@@ -28,7 +28,14 @@ export class SyncManager {
             };
 
             // Soporte para envío resiliente de archivos multimedia en la cola
-            if (item.data && (item.data.audioUri || item.data.videoUri || item.data.profilePhotoUri)) {
+            if (item.data && (
+              item.data.audioUri || 
+              item.data.videoUri || 
+              item.data.profilePhotoUri || 
+              item.data.dniFrontUri || 
+              item.data.dniBackUri || 
+              item.data.presentationVideoUri
+            )) {
               const formData = new FormData();
               Object.keys(item.data).forEach(key => {
                 if (key.endsWith('Uri') && item.data[key]) {

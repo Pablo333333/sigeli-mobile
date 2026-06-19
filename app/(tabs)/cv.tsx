@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../src/theme';
 import api from '../../src/services/api';
@@ -63,6 +63,7 @@ const INITIAL_DATA: CVData = {
 
 export default function CVScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<CVData>(INITIAL_DATA);
   const [loading, setLoading] = useState(true);
@@ -161,10 +162,17 @@ export default function CVScreen() {
         
         // Agregar campos de texto
         Object.keys(formData).forEach(key => {
-          if (!key.endsWith('Uri')) {
+          if (!key.endsWith('Uri') && !['miningExperienceYears', 'miningExperienceMonths', 'generalExperienceYears'].includes(key)) {
             data.append(key, (formData as any)[key]);
           }
         });
+
+        // Calcular y agregar años de experiencia total
+        const miningYears = parseFloat(formData.miningExperienceYears || '0');
+        const miningMonths = parseFloat(formData.miningExperienceMonths || '0');
+        const generalYears = parseFloat(formData.generalExperienceYears || '0');
+        const totalYears = miningYears + (miningMonths / 12) + generalYears;
+        data.append('yearsExperience', totalYears.toString());
 
         // Agregar archivos multimedia
         if (formData.profilePhotoUri) {
@@ -196,7 +204,13 @@ export default function CVScreen() {
           } as any);
         }
 
-        await api.post(`/cv/${user.id}`, data, {
+        // Agregar userId al FormData para que el backend lo identifique
+        data.append('userId', user.id);
+
+        console.log('Intentando guardar CV en URL:', `${api.defaults.baseURL}/cv`);
+        console.log('Método: POST');
+        
+        await api.post('/cv', data, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -250,7 +264,7 @@ export default function CVScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}>
           <View style={styles.header}>
             <Text style={styles.title}>Talento Comunal</Text>
             <Text style={styles.subtitle}>Completa tu perfil para acceder a mejores oportunidades.</Text>
