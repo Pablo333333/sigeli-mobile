@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // En desarrollo con Android Emulator, localhost es 10.0.2.2
 // Para iOS o dispositivo físico, usar la IP de la máquina
-const BASE_URL = 'http://192.168.0.113:3001';
+const BASE_URL = 'https://sigeli-backend-production.up.railway.app';
 
 const api = axios.create({
   baseURL: BASE_URL,

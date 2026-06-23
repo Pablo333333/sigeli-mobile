@@ -27,8 +27,9 @@
     ],
     "scheme": "sigeli",
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "f2672cdf-7d0a-419f-b073-e7112039518e"
       }
     }
   }
