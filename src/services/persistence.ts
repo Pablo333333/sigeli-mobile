@@ -8,11 +8,31 @@ const STORAGE_KEYS = {
   SYNC_QUEUE: '@sigeli_sync_queue',
   CHAT_MESSAGES: '@sigeli_chat_messages',
   EVALUACIONES: '@sigeli_evaluaciones',
+  CAPACITACIONES: '@sigeli_capacitaciones',
+  RECLAMOS: '@sigeli_reclamos',
 };
 
 export const PersistenceService = {
   // Estado de automatización
   isSyncAutomated: true,
+
+  async saveCapacitaciones(data: any) {
+    await AsyncStorage.setItem(STORAGE_KEYS.CAPACITACIONES, JSON.stringify(data));
+  },
+
+  async getCapacitaciones() {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.CAPACITACIONES);
+    return data ? JSON.parse(data) : null;
+  },
+
+  async saveReclamos(data: any) {
+    await AsyncStorage.setItem(STORAGE_KEYS.RECLAMOS, JSON.stringify(data));
+  },
+
+  async getReclamos() {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.RECLAMOS);
+    return data ? JSON.parse(data) : [];
+  },
 
   // ... existing methods ...
   async saveChatMessages(chatId: string, messages: any[]) {

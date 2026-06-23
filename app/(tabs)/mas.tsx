@@ -9,10 +9,9 @@ export default function Mas() {
   
   const menuItems = [
     { id: 'evaluaciones', title: 'Evaluaciones 360°', icon: 'star', color: Theme.colors.primary, subtitle: 'Encuestas de satisfacción laboral', route: '/evaluaciones' },
-    { id: 'capacitaciones', title: 'Mis Capacitaciones', icon: 'school', color: Theme.colors.success, subtitle: 'Certificados y progreso', route: null },
+    { id: 'capacitaciones', title: 'Mis Capacitaciones', icon: 'school', color: Theme.colors.success, subtitle: 'Certificados y progreso', route: '/capacitaciones' },
     { id: 'puntos', title: 'Programa de Puntos', icon: 'trophy', color: '#fbbf24', subtitle: 'Logros y recompensas', route: '/perfil/puntos' },
-    { id: 'reclamos', title: 'Buzón de Reclamos', icon: 'chatbox-ellipses', color: Theme.colors.danger, subtitle: 'Mediación comunitaria', route: null },
-    { id: 'configuracion', title: 'Configuración', icon: 'settings', color: Theme.colors.textSecondary, subtitle: 'Idioma y notificaciones', route: null },
+    { id: 'reclamos', title: 'Buzón de Reclamos', icon: 'chatbox-ellipses', color: Theme.colors.danger, subtitle: 'Mediación comunitaria', route: '/reclamos' },
   ];
 
   const handlePress = (route: string | null) => {
@@ -43,13 +42,6 @@ export default function Mas() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.versionText}>SIGELI Mobile v1.0.0</Text>
-        <Text style={styles.offlineStatus}>
-          <Ionicons name="cloud-done" size={14} color={Theme.colors.success} /> Modo Offline Preparado
-        </Text>
       </View>
     </ScrollView>
   );

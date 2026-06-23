@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,9 @@ export default function VozScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [idioma, setIdioma] = useState<'ES' | 'QU'>('ES');
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -53,7 +57,49 @@ export default function VozScreen() {
         Alert.alert('Permiso denegado', 'Necesitamos acceso al micrófono para el asistente de voz.');
       }
     })();
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (recording) {
+        recording.stopAndUnloadAsync();
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (isRecording) {
+      // Iniciar cronómetro
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      // Iniciar animación de pulso
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      pulseAnim.setValue(1);
+    }
+  }, [isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const startRecording = async () => {
     try {
@@ -77,31 +123,41 @@ export default function VozScreen() {
     if (!recording) return;
 
     setIsRecording(false);
-    setRecording(null);
     setIsLoading(true);
 
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
+      setRecording(null);
       
       if (uri) {
         await sendAudioMessage(uri);
       }
     } catch (err) {
       console.error('Failed to stop recording', err);
+      setRecording(null);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleMicPress = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
   const sendAudioMessage = async (uri: string) => {
+    if (!user) return;
     const formData = new FormData();
     formData.append('audio', {
       uri,
       name: 'audio.m4a',
       type: 'audio/m4a',
     } as any);
-    formData.append('usuarioId', user?.id || 'anon');
+    formData.append('usuarioId', user.id);
     formData.append('idioma', idioma);
 
     try {
@@ -109,7 +165,6 @@ export default function VozScreen() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      // Añadir mensaje del usuario (transcrito)
       const userMessage: Message = {
         id: Date.now().toString(),
         text: data.original || 'Consulta por voz',
@@ -118,7 +173,6 @@ export default function VozScreen() {
       };
       setMessages(prev => [...prev, userMessage]);
 
-      // Procesar respuesta de la IA
       handleAIResponse(data);
     } catch (error) {
       console.error('Error sending audio', error);
@@ -127,7 +181,7 @@ export default function VozScreen() {
   };
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || !user) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -142,13 +196,14 @@ export default function VozScreen() {
 
     try {
       const { data } = await api.post('/voz/consulta', {
-        usuarioId: user?.id || 'anon',
+        usuarioId: user.id,
         mensaje: text,
         idioma: idioma,
       });
 
       handleAIResponse(data);
     } catch (error) {
+      console.error('Error sending message', error);
       showErrorMessage();
     } finally {
       setIsLoading(false);
@@ -156,9 +211,19 @@ export default function VozScreen() {
   };
 
   const handleAIResponse = (data: any) => {
+    console.log('Respuesta del backend recibida:', data);
+    
+    if (!data) {
+      console.error('Error: El backend devolvió una respuesta vacía o nula.');
+      showErrorMessage();
+      return;
+    }
+
+    const textoAI = data.respuesta;
+    
     const aiMessage: Message = {
       id: (Date.now() + 1).toString(),
-      text: data.respuesta,
+      text: textoAI || 'Lo siento, no pude obtener una respuesta clara del servidor.',
       sender: 'ai',
       timestamp: new Date(),
       language: data.idioma,
@@ -166,12 +231,17 @@ export default function VozScreen() {
 
     setMessages((prev) => [...prev, aiMessage]);
     
-    // Reproducir respuesta por voz (TTS)
-    Speech.speak(data.respuesta, {
-      language: idioma === 'QU' ? 'es-PE' : 'es-ES', // Quechua no siempre está disponible, usamos español con acento local como fallback
-      pitch: 1.0,
-      rate: 0.9,
-    });
+    // Guard Clause para evitar el error de Kotlin/Android con undefined
+    if (textoAI && typeof textoAI === 'string') {
+      console.log('Iniciando TTS con texto:', textoAI);
+      Speech.speak(textoAI, {
+        language: idioma === 'QU' ? 'es-PE' : 'es-ES',
+        pitch: 1.0,
+        rate: 0.9,
+      });
+    } else {
+      console.warn('Speech.speak cancelado: El texto es nulo, undefined o no es una cadena.', textoAI);
+    }
 
     setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
   };
@@ -250,6 +320,7 @@ export default function VozScreen() {
             value={inputText}
             onChangeText={setInputText}
             multiline
+            editable={!isRecording}
           />
           
           <TouchableOpacity 
@@ -258,9 +329,8 @@ export default function VozScreen() {
               isRecording && styles.micButtonActive,
               !inputText.trim() && !isRecording && styles.micButtonIdle
             ]}
-            onPress={inputText.trim() ? () => sendMessage(inputText) : undefined}
-            onPressIn={!inputText.trim() ? startRecording : undefined}
-            onPressOut={!inputText.trim() ? stopRecording : undefined}
+            onPress={inputText.trim() ? () => sendMessage(inputText) : handleMicPress}
+            activeOpacity={0.7}
           >
             <Ionicons 
               name={inputText.trim() ? "send" : (isRecording ? "stop" : "mic")} 
@@ -272,10 +342,14 @@ export default function VozScreen() {
         
         {isRecording && (
           <View style={styles.recordingOverlay}>
-            <View style={styles.recordingPulse}>
+            <Animated.View style={[styles.recordingPulse, { transform: [{ scale: pulseAnim }] }]}>
               <Ionicons name="mic" size={48} color="white" />
-            </View>
+            </Animated.View>
+            <Text style={styles.recordingTime}>{formatTime(recordingTime)}</Text>
             <Text style={styles.recordingText}>Escuchando...</Text>
+            <TouchableOpacity style={styles.stopRecordingBtn} onPress={stopRecording}>
+              <Text style={styles.stopRecordingBtnText}>Detener y Enviar</Text>
+            </TouchableOpacity>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -412,23 +486,43 @@ const styles = StyleSheet.create({
   },
   recordingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(30, 64, 175, 0.9)',
+    backgroundColor: 'rgba(30, 64, 175, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
   recordingPulse: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
+  recordingTime: {
+    color: 'white',
+    fontSize: 32,
+    fontWeight: 'bold',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginBottom: 10,
+  },
   recordingText: {
     color: 'white',
-    fontSize: 24,
+    fontSize: 18,
+    fontWeight: '500',
+    marginBottom: 40,
+  },
+  stopRecordingBtn: {
+    backgroundColor: 'white',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 30,
+    elevation: 5,
+  },
+  stopRecordingBtnText: {
+    color: Theme.colors.danger,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

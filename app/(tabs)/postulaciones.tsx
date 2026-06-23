@@ -2,10 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { usePostulaciones } from '../../src/hooks/usePostulaciones';
 import { TimelineItem } from '../../src/components/TimelineItem';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function PostulacionesScreen() {
-  const userId = 'user-test-id'; // ID de prueba
-  const { data: postulaciones, isLoading, error } = usePostulaciones(userId);
+  const { user } = useAuth();
+  const { data: postulaciones, isLoading, error } = usePostulaciones(user?.id || '');
 
   if (isLoading) {
     return (

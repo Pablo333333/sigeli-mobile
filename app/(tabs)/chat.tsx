@@ -37,22 +37,25 @@ export default function ChatScreen() {
   const [isOnline, setIsOnline] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
-  // Simulamos un ID de chat con la empresa/empleador
-  const chatId = 'chat_empresa_123';
-  const employerId = 'employer_123';
-  const employerName = 'Minera Antamina - RRHH';
+  // ID de chat real obtenido de los parámetros o configurado dinámicamente
+  // Por ahora usamos un ID que el backend reconozca o el del usuario para buscar sus chats
+  const chatId = user?.id || 'default_chat';
+  const employerName = 'Centro de Atención al Comunero';
 
   useEffect(() => {
-    loadMessages();
+    if (user) {
+      loadMessages();
+    }
     
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(!!state.isConnected);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const loadMessages = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
       // 1. Cargar de persistencia local
@@ -65,8 +68,13 @@ export default function ChatScreen() {
       if (isOnline) {
         try {
           const response = await api.get(`/chat/${chatId}`);
-          if (response.data) {
-            const remoteMessages = response.data.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+          if (response.data && Array.isArray(response.data)) {
+            const remoteMessages = response.data.map((m: any) => ({ 
+              ...m, 
+              timestamp: new Date(m.timestamp),
+              // Asegurar que el status sea válido para la interfaz
+              status: m.status || 'sent'
+            }));
             setMessages(remoteMessages);
             await PersistenceService.saveChatMessages(chatId, remoteMessages);
           }
@@ -78,7 +86,7 @@ export default function ChatScreen() {
       console.error('Error loading messages', error);
     } finally {
       setIsLoading(false);
-      setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+      setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
     }
   };
 
@@ -90,7 +98,7 @@ export default function ChatScreen() {
       text: inputText.trim(),
       senderId: user.id,
       senderName: user.fullName,
-      receiverId: employerId,
+      receiverId: 'admin_sigeli', // ID de destino real (Admin/Empresa)
       timestamp: new Date(),
       status: isOnline ? 'sent' : 'pending',
     };
@@ -113,11 +121,12 @@ export default function ChatScreen() {
         setMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: 'sent' } : m));
       } else {
         // El interceptor de la API ya lo añadirá a la cola de sincronización
-        // Pero aquí lo manejamos visualmente
-        console.log('Mensaje en cola offline');
+        // pero lo marcamos como pendiente localmente
+        Alert.alert('Modo Offline', 'Tu mensaje se enviará automáticamente cuando recuperes conexión.');
       }
     } catch (error) {
       console.error('Error sending message', error);
+      Alert.alert('Error', 'No se pudo enviar el mensaje. Se reintentará automáticamente.');
     } finally {
       setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
     }

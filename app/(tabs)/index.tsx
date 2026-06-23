@@ -2,8 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../src/theme';
+import { useRouter } from 'expo-router';
 
 export default function Home() {
+  const router = useRouter();
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header / Saludo */}
@@ -39,11 +42,19 @@ export default function Home() {
 
       {/* Bloques Grandes de Acción */}
       <View style={styles.actionGrid}>
-        <TouchableOpacity style={[styles.actionBlock, { backgroundColor: Theme.colors.primary }]}>
+        <TouchableOpacity 
+          style={[styles.actionBlock, { backgroundColor: Theme.colors.primary }]}
+          onPress={() => router.push('/ofertas')}
+          activeOpacity={0.7}
+        >
           <Ionicons name="briefcase" size={32} color="white" />
           <Text style={styles.actionText}>Buscar Trabajo</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBlock, { backgroundColor: Theme.colors.success }]}>
+        <TouchableOpacity 
+          style={[styles.actionBlock, { backgroundColor: Theme.colors.success }]}
+          onPress={() => router.push('/capacitaciones')}
+          activeOpacity={0.7}
+        >
           <Ionicons name="school" size={32} color="white" />
           <Text style={styles.actionText}>Capacitarme</Text>
         </TouchableOpacity>
