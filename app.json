@@ -4,15 +4,19 @@
     "slug": "sigeli-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sigeli.app"
     },
     "android": {
       "package": "com.sigeli.app",
@@ -23,11 +27,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-av",
+      "expo-camera",
+      "expo-image-picker",
+      "expo-local-authentication",
+      "expo-font"
     ],
     "scheme": "sigeli",
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "f2672cdf-7d0a-419f-b073-e7112039518e"
       }

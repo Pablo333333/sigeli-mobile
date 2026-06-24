@@ -96,8 +96,8 @@ export default function ChatScreen() {
     const newMessage: Message = {
       id: Date.now().toString(),
       text: inputText.trim(),
-      senderId: user.id,
-      senderName: user.fullName,
+      senderId: user?.id || 'unknown',
+      senderName: user?.fullName || 'Usuario',
       receiverId: 'admin_sigeli', // ID de destino real (Admin/Empresa)
       timestamp: new Date(),
       status: isOnline ? 'sent' : 'pending',

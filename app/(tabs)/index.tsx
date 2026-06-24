@@ -3,15 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../src/theme';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
   const router = useRouter();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header / Saludo */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hola, Comunero</Text>
+        <Text style={styles.greeting}>Hola, {user?.fullName?.split(' ')[0] || 'Comunero'}</Text>
         <Text style={styles.subtitle}>Bienvenido a SIGELI</Text>
       </View>
 
@@ -35,7 +37,7 @@ export default function Home() {
       <View style={[styles.card, styles.pointsCard]}>
         <View style={styles.pointsInfo}>
           <Text style={styles.pointsLabel}>Puntos Acumulados</Text>
-          <Text style={styles.pointsValue}>1,250</Text>
+          <Text style={styles.pointsValue}>{user?.points?.toLocaleString() || '0'}</Text>
         </View>
         <Ionicons name="trophy" size={48} color="#fbbf24" />
       </View>
