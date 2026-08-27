@@ -1,5 +1,5 @@
 /**
- * BRANDING SIGELI — fuente única de verdad.
+ * BRANDING Talento — fuente única de verdad.
  * Logo oficial: assets/brand/logo.png (puerta azul + marco naranja).
  *
  * Colores muestreados del logo:
@@ -13,8 +13,8 @@
 export const USE_CUSTOM_LOGO = true;
 
 export const BrandMeta = {
-  appName: 'SIGELI',
-  tagline: 'Sistema de Gestión de Empleo Local Inteligente',
+  appName: 'Talento',
+  tagline: 'Sistema de gestión de empleo local inteligente',
   organizerName: 'Organizador / Comunidad',
   logoAssetHint: 'assets/brand/logo.png',
 };

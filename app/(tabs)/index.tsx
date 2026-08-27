@@ -363,7 +363,7 @@ export default function Home() {
             {role && role !== 'COMUNERO' && (
               <Text style={styles.roleBadge}>{ROLE_LABELS[role] || role}</Text>
             )}
-            <Text style={styles.subtitle}>Bienvenido a SIGELI</Text>
+            <Text style={styles.subtitle}>Bienvenido a {Theme.brand.appName}</Text>
           </View>
           {user?.id && (
             <TouchableOpacity

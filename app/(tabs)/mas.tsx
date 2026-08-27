@@ -79,7 +79,7 @@ export default function Mas() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.userCard}>
-        <Text style={styles.userName}>{user?.fullName || 'Usuario SIGELI'}</Text>
+        <Text style={styles.userName}>{user?.fullName || 'Usuario Talento'}</Text>
         <Text style={styles.userRole}>
           {role ? ROLE_LABELS[role] || role : 'Sin rol'}
         </Text>

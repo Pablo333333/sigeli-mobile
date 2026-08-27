@@ -36,7 +36,7 @@ export default function PuntosScreen() {
               </View>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user?.fullName || 'Comunero SIGELI'}</Text>
+              <Text style={styles.userName}>{user?.fullName || 'Comunero Talento'}</Text>
               <Text style={styles.userRole}>Talento Comunal • Sector Verdecocha</Text>
               <Text style={styles.userLocation}>Ancash, Perú</Text>
             </View>

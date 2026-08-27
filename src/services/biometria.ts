@@ -28,8 +28,8 @@ export const BiometriaService = {
       });
 
       if (result.success) {
-        const token = await SecureStore.getItemAsync('sigeli_token');
-        const user = await SecureStore.getItemAsync('sigeli_user');
+        const token = await SecureStore.getItemAsync('talento_token');
+        const user = await SecureStore.getItemAsync('talento_user');
 
         if (token && user) {
           return { success: true, token, user: JSON.parse(user) };
@@ -82,7 +82,7 @@ export const BiometriaService = {
   },
 
   async saveCredentialsSecurely(token: string, user: any) {
-    await SecureStore.setItemAsync('sigeli_token', token);
-    await SecureStore.setItemAsync('sigeli_user', JSON.stringify(user));
+    await SecureStore.setItemAsync('talento_token', token);
+    await SecureStore.setItemAsync('talento_user', JSON.stringify(user));
   },
 };

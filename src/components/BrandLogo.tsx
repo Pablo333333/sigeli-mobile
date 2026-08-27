@@ -16,7 +16,7 @@ const logoSource = USE_CUSTOM_LOGO
   : null;
 
 /**
- * Logo oficial SIGELI (puerta).
+ * Logo oficial Talento (puerta).
  * Si USE_CUSTOM_LOGO=false, muestra escudo provisional.
  */
 export function BrandLogo({ size = 72, variant = 'mark', light = false, style }: Props) {

@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function loadStorageData() {
     try {
-      const storedToken = await SecureStore.getItemAsync('sigeli_token');
-      const storedUser = await SecureStore.getItemAsync('sigeli_user');
+      const storedToken = await SecureStore.getItemAsync('talento_token');
+      const storedUser = await SecureStore.getItemAsync('talento_user');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -73,15 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
-    await SecureStore.setItemAsync('sigeli_token', newToken);
-    await SecureStore.setItemAsync('sigeli_user', JSON.stringify(newUser));
+    await SecureStore.setItemAsync('talento_token', newToken);
+    await SecureStore.setItemAsync('talento_user', JSON.stringify(newUser));
   };
 
   const logout = async () => {
     setToken(null);
     setUser(null);
-    await SecureStore.deleteItemAsync('sigeli_token');
-    await SecureStore.deleteItemAsync('sigeli_user');
+    await SecureStore.deleteItemAsync('talento_token');
+    await SecureStore.deleteItemAsync('talento_user');
     router.replace('/login');
   };
 

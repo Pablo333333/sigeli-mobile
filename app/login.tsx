@@ -199,7 +199,7 @@ export default function LoginScreen() {
                 <Ionicons name="mail-outline" size={22} color={Theme.colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="usuario@sigeli.com"
+                  placeholder="usuario@talento.local"
                   placeholderTextColor={Theme.colors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -266,7 +266,7 @@ export default function LoginScreen() {
               style={styles.forgotPassword}
               onPress={() =>
                 Alert.alert(
-                  'Soporte SIGELI',
+                  'Soporte Talento',
                   'Contacte a la directiva comunal o al administrador para restablecer su acceso.',
                 )
               }

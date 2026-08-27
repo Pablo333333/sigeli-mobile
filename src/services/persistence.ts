@@ -1,15 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEYS = {
-  CV: '@sigeli_cv',
-  OFERTAS: '@sigeli_ofertas',
-  POSTULACIONES: '@sigeli_postulaciones',
-  NOTIFICACIONES: '@sigeli_notificaciones',
-  SYNC_QUEUE: '@sigeli_sync_queue',
-  CHAT_MESSAGES: '@sigeli_chat_messages',
-  EVALUACIONES: '@sigeli_evaluaciones',
-  CAPACITACIONES: '@sigeli_capacitaciones',
-  RECLAMOS: '@sigeli_reclamos',
+  CV: '@talento_cv',
+  OFERTAS: '@talento_ofertas',
+  POSTULACIONES: '@talento_postulaciones',
+  NOTIFICACIONES: '@talento_notificaciones',
+  SYNC_QUEUE: '@talento_sync_queue',
+  CHAT_MESSAGES: '@talento_chat_messages',
+  EVALUACIONES: '@talento_evaluaciones',
+  CAPACITACIONES: '@talento_capacitaciones',
+  RECLAMOS: '@talento_reclamos',
 };
 
 export const PersistenceService = {

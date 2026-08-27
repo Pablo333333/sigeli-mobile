@@ -34,7 +34,7 @@ export default function VozScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Rimaykullayki / Saludos. Soy el asistente de SIGELI. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos. Cambia a Quechua arriba si lo prefieres.',
+      text: 'Rimaykullayki / Saludos. Soy el asistente de Talento. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos. Cambia a Quechua arriba si lo prefieres.',
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -72,8 +72,8 @@ export default function VozScreen() {
           ...prev[0],
           text:
             idioma === 'QU'
-              ? 'Rimaykullayki. Ñuqaqa SIGELI yanapaqniyki kani. Postulacion, llamkay, yachachiy, transparencia utaq reclamomanta tapuway.'
-              : 'Rimaykullayki / Saludos. Soy el asistente de SIGELI. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos.',
+              ? 'Rimaykullayki. Ñuqaqa Talento yanapaqniyki kani. Postulacion, llamkay, yachachiy, transparencia utaq reclamomanta tapuway.'
+              : 'Rimaykullayki / Saludos. Soy el asistente de Talento. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos.',
         },
       ];
     });

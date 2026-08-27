@@ -18,7 +18,7 @@ const api = axios.create({
 // Interceptor para añadir el token a las peticiones
 api.interceptors.request.use(
   async (config) => {
-    const token = await SecureStore.getItemAsync('sigeli_token');
+    const token = await SecureStore.getItemAsync('talento_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

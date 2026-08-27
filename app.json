@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Sigeli",
-    "slug": "sigeli-mobile",
+    "name": "Talento",
+    "slug": "talento-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,10 +16,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sigeli.app"
+      "bundleIdentifier": "com.talento.app"
     },
     "android": {
-      "package": "com.sigeli.app",
+      "package": "com.talento.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
@@ -35,7 +35,7 @@
       "expo-local-authentication",
       "expo-font"
     ],
-    "scheme": "sigeli",
+    "scheme": "talento",
     "extra": {
       "eas": {
         "projectId": "f2672cdf-7d0a-419f-b073-e7112039518e"
