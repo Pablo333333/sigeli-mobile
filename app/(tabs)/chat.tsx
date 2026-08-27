@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,150 +9,142 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '../../src/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
-import { PersistenceService } from '../../src/services/persistence';
-import NetInfo from '@react-native-community/netinfo';
+import { useLocalSearchParams } from 'expo-router';
 
-interface Message {
+type Conversacion = {
+  postulacionId: string;
+  puesto: string;
+  empresa?: string;
+  candidato: string;
+  estadoProceso: string;
+  ultimoMensaje?: { texto: string; fecha: string; de: string } | null;
+  pendientes: number;
+};
+
+type Mensaje = {
   id: string;
-  text: string;
-  senderId: string;
-  senderName: string;
-  receiverId: string;
-  timestamp: Date;
-  status: 'pending' | 'sent' | 'read' | 'answered';
-}
+  mensaje: string;
+  fecha: string;
+  estado: 'PENDIENTE' | 'LEIDO' | 'RESPONDIDO';
+  esMio: boolean;
+  remitente: { id: string; fullName: string; role: string };
+  destinatario: { id: string; fullName: string; role: string };
+};
+
+const ESTADO_LABEL: Record<string, string> = {
+  PENDIENTE: 'Pendiente',
+  LEIDO: 'Leído',
+  RESPONDIDO: 'Respondido',
+};
 
 export default function ChatScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const params = useLocalSearchParams<{ postulacionId?: string }>();
+
+  const [conversaciones, setConversaciones] = useState<Conversacion[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    typeof params.postulacionId === 'string' ? params.postulacionId : null,
+  );
+  const [headerTitle, setHeaderTitle] = useState('Comunicaciones');
+  const [messages, setMessages] = useState<Mensaje[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
+  const [loadingList, setLoadingList] = useState(true);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // ID de chat real obtenido de los parámetros o configurado dinámicamente
-  // Por ahora usamos un ID que el backend reconozca o el del usuario para buscar sus chats
-  const chatId = user?.id || 'default_chat';
-  const employerName = 'Centro de Atención al Comunero';
+  const loadConversaciones = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const res = await api.get('/chat/conversaciones');
+      setConversaciones(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error(e);
+      setConversaciones([]);
+    } finally {
+      setLoadingList(false);
+    }
+  }, []);
+
+  const loadMensajes = useCallback(async (postulacionId: string) => {
+    setLoadingChat(true);
+    try {
+      const res = await api.get(`/chat/postulacion/${postulacionId}`);
+      setMessages(Array.isArray(res.data?.mensajes) ? res.data.mensajes : []);
+      const puesto = res.data?.postulacion?.oferta?.title;
+      const candidato = res.data?.postulacion?.candidato?.fullName;
+      setHeaderTitle(puesto ? `${puesto}${candidato ? ` · ${candidato}` : ''}` : 'Seguimiento');
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 150);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message || 'No se pudieron cargar los mensajes.');
+      setSelectedId(null);
+    } finally {
+      setLoadingChat(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      loadMessages();
+    loadConversaciones();
+  }, [loadConversaciones]);
+
+  useEffect(() => {
+    if (selectedId) {
+      loadMensajes(selectedId);
     }
-    
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(!!state.isConnected);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const loadMessages = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      // 1. Cargar de persistencia local
-      const localMessages = await PersistenceService.getChatMessages(chatId);
-      if (localMessages.length > 0) {
-        setMessages(localMessages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-      }
-
-      // 2. Intentar cargar del backend si hay internet
-      if (isOnline) {
-        try {
-          const response = await api.get(`/chat/${chatId}`);
-          if (response.data && Array.isArray(response.data)) {
-            const remoteMessages = response.data.map((m: any) => ({ 
-              ...m, 
-              timestamp: new Date(m.timestamp),
-              // Asegurar que el status sea válido para la interfaz
-              status: m.status || 'sent'
-            }));
-            setMessages(remoteMessages);
-            await PersistenceService.saveChatMessages(chatId, remoteMessages);
-          }
-        } catch (e) {
-          console.log('Error al cargar mensajes del backend');
-        }
-      }
-    } catch (error) {
-      console.error('Error loading messages', error);
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
-    }
-  };
+  }, [selectedId, loadMensajes]);
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !user) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      senderId: user?.id || 'unknown',
-      senderName: user?.fullName || 'Usuario',
-      receiverId: 'admin_sigeli', // ID de destino real (Admin/Empresa)
-      timestamp: new Date(),
-      status: isOnline ? 'sent' : 'pending',
-    };
-
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
+    if (!inputText.trim() || !selectedId || !user) return;
+    setSending(true);
+    const texto = inputText.trim();
     setInputText('');
-    await PersistenceService.saveChatMessages(chatId, updatedMessages);
-
     try {
-      if (isOnline) {
-        await api.post('/chat/send', {
-          chatId,
-          text: newMessage.text,
-          senderId: newMessage.senderId,
-          receiverId: newMessage.receiverId,
-        });
-        
-        // Actualizar estado a enviado si fue exitoso
-        setMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: 'sent' } : m));
-      } else {
-        // El interceptor de la API ya lo añadirá a la cola de sincronización
-        // pero lo marcamos como pendiente localmente
-        Alert.alert('Modo Offline', 'Tu mensaje se enviará automáticamente cuando recuperes conexión.');
-      }
-    } catch (error) {
-      console.error('Error sending message', error);
-      Alert.alert('Error', 'No se pudo enviar el mensaje. Se reintentará automáticamente.');
+      const res = await api.post('/chat/send', {
+        postulacionId: selectedId,
+        mensaje: texto,
+      });
+      setMessages((prev) => [...prev, res.data]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      loadConversaciones();
+    } catch (e: any) {
+      setInputText(texto);
+      Alert.alert('Error', e.response?.data?.message || 'No se pudo enviar el mensaje.');
     } finally {
-      setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+      setSending(false);
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isMe = item.senderId === user?.id;
-
+  const renderMessage = ({ item }: { item: Mensaje }) => {
+    const isMe = item.esMio;
     return (
       <View style={[styles.messageWrapper, isMe ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
-        {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+        {!isMe && <Text style={styles.senderName}>{item.remitente?.fullName}</Text>}
         <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.theirBubble]}>
           <Text style={[styles.messageText, isMe ? styles.myText : styles.theirText]}>
-            {item.text}
+            {item.mensaje}
           </Text>
           <View style={styles.messageFooter}>
             <Text style={[styles.messageTime, isMe ? styles.myTime : styles.theirTime]}>
-              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {new Date(item.fecha).toLocaleString([], {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </Text>
             {isMe && (
-              <Ionicons 
-                name={item.status === 'pending' ? 'time-outline' : (item.status === 'read' || item.status === 'answered' ? 'checkmark-done' : 'checkmark')} 
-                size={14} 
-                color={item.status === 'read' || item.status === 'answered' ? Theme.colors.success : 'rgba(255,255,255,0.7)'} 
-                style={styles.statusIcon}
-              />
+              <Text style={[styles.estadoChip, isMe && styles.estadoChipMine]}>
+                {ESTADO_LABEL[item.estado] || item.estado}
+              </Text>
             )}
           </View>
         </View>
@@ -160,55 +152,121 @@ export default function ChatScreen() {
     );
   };
 
+  if (!selectedId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Chat de seguimiento</Text>
+          <Text style={styles.headerSub}>Evidencia por postulación (fecha, remitente, estado)</Text>
+        </View>
+        {loadingList ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={Theme.colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={conversaciones}
+            keyExtractor={(item) => item.postulacionId}
+            refreshControl={
+              <RefreshControl refreshing={loadingList} onRefresh={loadConversaciones} />
+            }
+            contentContainerStyle={{ padding: 16, gap: 10 }}
+            ListEmptyComponent={
+              <Text style={styles.empty}>
+                No hay postulaciones con canal de comunicación aún. Postula a una oferta para
+                iniciar el seguimiento.
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.convCard}
+                onPress={() => setSelectedId(item.postulacionId)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.convTitle}>{item.puesto}</Text>
+                  <Text style={styles.convMeta}>
+                    {item.candidato}
+                    {item.empresa ? ` · ${item.empresa}` : ''}
+                  </Text>
+                  {item.ultimoMensaje && (
+                    <Text style={styles.convPreview} numberOfLines={1}>
+                      {item.ultimoMensaje.de}: {item.ultimoMensaje.texto}
+                    </Text>
+                  )}
+                </View>
+                {item.pendientes > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.pendientes}</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={20} color={Theme.colors.border} />
+              </TouchableOpacity>
+            )}
+          />
+        )}
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerInfo}>
-          <View style={styles.avatar}>
-            <Ionicons name="business" size={24} color="white" />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>{employerName}</Text>
-            <Text style={styles.headerStatus}>
-              {isOnline ? 'En línea' : 'Sin conexión'}
+          <TouchableOpacity onPress={() => setSelectedId(null)} style={{ padding: 4 }}>
+            <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {headerTitle}
             </Text>
+            <Text style={styles.headerStatus}>Trazabilidad del proceso</Text>
           </View>
+          <TouchableOpacity onPress={() => selectedId && loadMensajes(selectedId)}>
+            <Ionicons name="refresh" size={22} color={Theme.colors.primary} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={loadMessages}>
-          <Ionicons name="refresh" size={24} color={Theme.colors.primary} />
-        </TouchableOpacity>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.chatList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-      />
+      {loadingChat ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.chatList}
+          ListEmptyComponent={
+            <Text style={styles.empty}>Sin mensajes. Escribe el primero para dejar evidencia.</Text>
+          }
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        />
+      )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={[styles.inputArea, { paddingBottom: 12 + insets.bottom }]}>
-          <TouchableOpacity style={styles.attachBtn}>
-            <Ionicons name="add" size={28} color={Theme.colors.textSecondary} />
-          </TouchableOpacity>
           <TextInput
             style={styles.input}
-            placeholder="Escribe un mensaje..."
+            placeholder="Escribe un mensaje de seguimiento..."
             value={inputText}
             onChangeText={setInputText}
             multiline
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]} 
+          <TouchableOpacity
+            style={[styles.sendBtn, (!inputText.trim() || sending) && styles.sendBtnDisabled]}
             onPress={sendMessage}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || sending}
           >
-            <Ionicons name="send" size={24} color="white" />
+            {sending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Ionicons name="send" size={22} color="white" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -217,57 +275,52 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    elevation: 2,
   },
-  headerInfo: {
+  headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: Theme.colors.text },
+  headerSub: { fontSize: 12, color: Theme.colors.textSecondary, marginTop: 4 },
+  headerStatus: { fontSize: 12, color: Theme.colors.success, fontWeight: '500' },
+  convCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Theme.colors.primary,
-    justifyContent: 'center',
+  convTitle: { fontWeight: '700', fontSize: 15, color: Theme.colors.text },
+  convMeta: { fontSize: 12, color: Theme.colors.textSecondary, marginTop: 2 },
+  convPreview: { fontSize: 12, color: '#64748b', marginTop: 6 },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Theme.colors.danger,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Theme.colors.text,
+  badgeText: { color: 'white', fontSize: 11, fontWeight: '700' },
+  empty: {
+    textAlign: 'center',
+    color: Theme.colors.textSecondary,
+    marginTop: 40,
+    paddingHorizontal: 24,
+    lineHeight: 20,
   },
-  headerStatus: {
-    fontSize: 12,
-    color: Theme.colors.success,
-    fontWeight: '500',
-  },
-  chatList: {
-    padding: 16,
-    paddingBottom: 20,
-  },
-  messageWrapper: {
-    marginBottom: 16,
-    maxWidth: '80%',
-  },
-  myMessageWrapper: {
-    alignSelf: 'flex-end',
-  },
-  theirMessageWrapper: {
-    alignSelf: 'flex-start',
-  },
+  chatList: { padding: 16, paddingBottom: 20 },
+  messageWrapper: { marginBottom: 14, maxWidth: '85%' },
+  myMessageWrapper: { alignSelf: 'flex-end' },
+  theirMessageWrapper: { alignSelf: 'flex-start' },
   senderName: {
     fontSize: 12,
     color: Theme.colors.textSecondary,
@@ -276,12 +329,7 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     padding: 12,
-    borderRadius: 18,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderRadius: 16,
   },
   myBubble: {
     backgroundColor: Theme.colors.primary,
@@ -293,53 +341,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  myText: {
-    color: 'white',
-  },
-  theirText: {
-    color: Theme.colors.text,
-  },
+  messageText: { fontSize: 15, lineHeight: 21 },
+  myText: { color: 'white' },
+  theirText: { color: Theme.colors.text },
   messageFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: 4,
-    gap: 4,
+    marginTop: 6,
+    gap: 6,
   },
-  messageTime: {
+  messageTime: { fontSize: 10 },
+  myTime: { color: 'rgba(255,255,255,0.75)' },
+  theirTime: { color: Theme.colors.textSecondary },
+  estadoChip: {
     fontSize: 10,
-  },
-  myTime: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  theirTime: {
+    fontWeight: '700',
     color: Theme.colors.textSecondary,
   },
-  statusIcon: {
-    marginLeft: 2,
-  },
+  estadoChipMine: { color: 'rgba(255,255,255,0.9)' },
   inputArea: {
     flexDirection: 'row',
     padding: 12,
     backgroundColor: 'white',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-  },
-  attachBtn: {
-    padding: 8,
+    gap: 8,
   },
   input: {
     flex: 1,
     backgroundColor: '#F1F5F9',
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 8,
+    paddingVertical: 10,
     fontSize: 16,
     maxHeight: 100,
     color: Theme.colors.text,
@@ -351,9 +386,6 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
   },
-  sendBtnDisabled: {
-    backgroundColor: '#CBD5E1',
-  },
+  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
 });

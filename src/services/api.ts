@@ -9,7 +9,7 @@ const BASE_URL = 'https://sigeli-backend-production.up.railway.app';
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,6 +21,13 @@ api.interceptors.request.use(
     const token = await SecureStore.getItemAsync('sigeli_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // FormData (foto facial / audio): no forzar application/json
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        delete (config.headers as any)['Content-Type'];
+        delete (config.headers as any)['content-type'];
+      }
     }
     return config;
   },
@@ -64,7 +71,14 @@ api.interceptors.response.use(
       }
 
       // Si es un POST/PATCH/PUT/DELETE, añadimos a la cola de sincronización
-      if (['post', 'patch', 'put', 'delete'].includes(config.method)) {
+      // Excepción: auth biométrica / login no deben encolarse como éxito falso
+      const url = config.url || '';
+      const skipOfflineQueue =
+        url.includes('/auth/login') ||
+        url.includes('/auth/verify-biometric') ||
+        url.includes('/voz/');
+
+      if (['post', 'patch', 'put', 'delete'].includes(config.method) && !skipOfflineQueue) {
         let requestData = config.data;
         
         // Manejo especial para FormData: extraer partes para que sea serializable en la cola

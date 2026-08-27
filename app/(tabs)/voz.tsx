@@ -34,7 +34,7 @@ export default function VozScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Rimaykullayki (Saludos). Soy tu asistente de SIGELI. ¿En qué puedo ayudarte hoy?',
+      text: 'Rimaykullayki / Saludos. Soy el asistente de SIGELI. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos. Cambia a Quechua arriba si lo prefieres.',
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -48,6 +48,36 @@ export default function VozScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
+
+  const quickPrompts =
+    idioma === 'QU'
+      ? [
+          { label: 'Allillanchu', text: 'Allillanchu' },
+          { label: 'Postulacion', text: 'Imaynataq postulacionniy?' },
+          { label: 'Llamkay', text: 'Ima llamkay ofertakuna kan?' },
+          { label: 'Yachachiy', text: 'Yachachikuymanta willaway' },
+        ]
+      : [
+          { label: 'Saludo', text: 'Hola' },
+          { label: 'Postulación', text: '¿Cuál es el estado de mi postulación?' },
+          { label: 'Ofertas', text: '¿Qué ofertas de trabajo hay?' },
+          { label: 'Capacitación', text: 'Quiero ver mis capacitaciones' },
+        ];
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0].sender !== 'ai') return prev;
+      return [
+        {
+          ...prev[0],
+          text:
+            idioma === 'QU'
+              ? 'Rimaykullayki. Ñuqaqa SIGELI yanapaqniyki kani. Postulacion, llamkay, yachachiy, transparencia utaq reclamomanta tapuway.'
+              : 'Rimaykullayki / Saludos. Soy el asistente de SIGELI. Puedo ayudarte con postulaciones, ofertas, capacitaciones, transparencia y reclamos.',
+        },
+      ];
+    });
+  }, [idioma]);
 
   useEffect(() => {
     // Solicitar permisos de audio al montar
@@ -297,6 +327,19 @@ export default function VozScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.chipsRow}>
+          {quickPrompts.map((p) => (
+            <TouchableOpacity
+              key={p.label}
+              style={styles.chip}
+              onPress={() => sendMessage(p.text)}
+              disabled={isLoading || isRecording}
+            >
+              <Text style={styles.chipText}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -316,7 +359,7 @@ export default function VozScreen() {
         <View style={[styles.inputArea, { paddingBottom: 16 + insets.bottom }]}>
           <TextInput
             style={styles.input}
-            placeholder="Escribe tu consulta..."
+            placeholder={idioma === 'QU' ? 'Qillqay tapukuyniykita...' : 'Escribe tu consulta...'}
             value={inputText}
             onChangeText={setInputText}
             multiline
@@ -389,6 +432,29 @@ const styles = StyleSheet.create({
   },
   langTextActive: {
     color: '#fff',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Theme.colors.primary,
   },
   chatContainer: {
     padding: 20,

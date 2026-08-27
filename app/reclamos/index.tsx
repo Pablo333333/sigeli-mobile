@@ -18,11 +18,26 @@ import { useAuth } from '../../src/context/AuthContext';
 import { PersistenceService } from '../../src/services/persistence';
 import NetInfo from '@react-native-community/netinfo';
 
+type Empresa = { id: string; name: string };
+
+const CATEGORIAS = [
+  'Pago / remuneración',
+  'Condiciones laborales',
+  'Discriminación',
+  'Seguridad y salud',
+  'Incumplimiento de acuerdo',
+  'Otro',
+];
+
 export default function ReclamosScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [asunto, setAsunto] = useState('');
+  const [motivo, setMotivo] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [categoria, setCategoria] = useState(CATEGORIAS[0]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [tenantId, setTenantId] = useState<string>('');
+  const [loadingEmpresas, setLoadingEmpresas] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -33,42 +48,80 @@ export default function ReclamosScreen() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    loadEmpresas();
+  }, []);
+
+  const loadEmpresas = async () => {
+    setLoadingEmpresas(true);
+    try {
+      const response = await api.get('/transparencia/empresas');
+      const list: Empresa[] = Array.isArray(response.data) ? response.data : [];
+      setEmpresas(list);
+      if (list.length > 0) {
+        setTenantId(list[0].id);
+      }
+    } catch (error) {
+      console.error('Error cargando empresas', error);
+    } finally {
+      setLoadingEmpresas(false);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!asunto || !descripcion) {
-      Alert.alert('Error', 'Por favor completa todos los campos.');
+    if (!motivo.trim() || !descripcion.trim()) {
+      Alert.alert('Error', 'Por favor completa el motivo y la descripción.');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Sesión requerida', 'Debes iniciar sesión para enviar un reclamo.');
       return;
     }
 
     setSubmitting(true);
     const payload = {
-      asunto,
-      descripcion,
-      tipo: 'RECLAMO',
-      prioridad: 'MEDIA',
-      userId: user?.id,
-      timestamp: new Date().toISOString(),
+      tenantId: tenantId || undefined,
+      motivo: motivo.trim(),
+      descripcion: descripcion.trim(),
+      categoria,
+      nombreAfectado: user.fullName,
     };
 
     try {
       if (isOnline) {
-        await api.post('/transparencia/reclamos', payload);
-        Alert.alert('Éxito', 'Tu reclamo ha sido enviado correctamente y será revisado por mediación comunitaria.', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
+        const response = await api.post('/transparencia/reclamos', payload);
+        if (response.status === 202 || response.data?._offline) {
+          Alert.alert(
+            'Modo Offline',
+            'Tu reclamo quedó en cola y se enviará automáticamente cuando recuperes conexión.',
+            [{ text: 'OK', onPress: () => router.back() }],
+          );
+        } else {
+          Alert.alert(
+            'Éxito',
+            'Tu reclamo ha sido enviado correctamente y será revisado por mediación comunitaria.',
+            [{ text: 'OK', onPress: () => router.back() }],
+          );
+        }
       } else {
-        // Guardar en la cola de sincronización para cuando haya internet
         await PersistenceService.addToSyncQueue({
           url: '/transparencia/reclamos',
           method: 'POST',
-          data: payload
+          data: payload,
         });
-        Alert.alert('Modo Offline', 'Tu reclamo ha sido guardado localmente y se enviará automáticamente cuando recuperes conexión.', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
+        Alert.alert(
+          'Modo Offline',
+          'Tu reclamo ha sido guardado localmente y se enviará automáticamente cuando recuperes conexión.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending reclamo:', error);
-      Alert.alert('Error', 'No se pudo enviar el reclamo. Por favor intenta más tarde.');
+      const message =
+        error.response?.data?.message ||
+        'No se pudo enviar el reclamo. Por favor intenta más tarde.';
+      Alert.alert('Error', Array.isArray(message) ? message.join(', ') : message);
     } finally {
       setSubmitting(false);
     }
@@ -87,17 +140,63 @@ export default function ReclamosScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.subtitle}>Canal oficial para mediación comunitaria y resolución de conflictos.</Text>
+          <Text style={styles.subtitle}>
+            Canal oficial para mediación comunitaria y resolución de conflictos.
+          </Text>
         </View>
 
         <View style={styles.card}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Asunto</Text>
+            <Text style={styles.label}>Empresa / contratista involucrada</Text>
+            {loadingEmpresas ? (
+              <ActivityIndicator color={Theme.colors.primary} />
+            ) : empresas.length === 0 ? (
+              <Text style={styles.helperText}>
+                No hay empresas cargadas. El reclamo se asociará a tu comunidad.
+              </Text>
+            ) : (
+              <View style={styles.chipsWrap}>
+                {empresas.map((empresa) => (
+                  <TouchableOpacity
+                    key={empresa.id}
+                    style={[styles.chip, tenantId === empresa.id && styles.chipActive]}
+                    onPress={() => setTenantId(empresa.id)}
+                  >
+                    <Text
+                      style={[styles.chipText, tenantId === empresa.id && styles.chipTextActive]}
+                    >
+                      {empresa.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Categoría</Text>
+            <View style={styles.chipsWrap}>
+              {CATEGORIAS.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.chip, categoria === item && styles.chipActive]}
+                  onPress={() => setCategoria(item)}
+                >
+                  <Text style={[styles.chipText, categoria === item && styles.chipTextActive]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Motivo</Text>
             <TextInput
               style={styles.input}
               placeholder="Ej: Problema con el pago, desacuerdo en campo..."
-              value={asunto}
-              onChangeText={setAsunto}
+              value={motivo}
+              onChangeText={setMotivo}
             />
           </View>
 
@@ -193,6 +292,36 @@ const styles = StyleSheet.create({
     color: Theme.colors.text,
     marginBottom: 8,
   },
+  helperText: {
+    fontSize: 13,
+    color: Theme.colors.textSecondary,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  chipActive: {
+    backgroundColor: Theme.colors.primary + '18',
+    borderColor: Theme.colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: Theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: Theme.colors.primary,
+    fontWeight: '700',
+  },
   input: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
@@ -209,6 +338,7 @@ const styles = StyleSheet.create({
     padding: 12,
     textAlignVertical: 'top',
     fontSize: 16,
+    minHeight: 120,
   },
   infoBox: {
     flexDirection: 'row',

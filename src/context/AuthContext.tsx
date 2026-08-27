@@ -8,6 +8,9 @@ interface User {
   fullName: string;
   role: string;
   points?: number;
+  dni?: string;
+  sector?: string | null;
+  trustLevel?: string;
 }
 
 interface AuthContextType {

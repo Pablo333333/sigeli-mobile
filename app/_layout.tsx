@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { useEffect, useState, Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { AuthProvider } from '../src/context/AuthContext';
+import { SyncBootstrap } from '../src/components/SyncBootstrap';
 import { Theme } from '../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -87,9 +88,16 @@ export default function RootLayout() {
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <SyncBootstrap />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="login" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="postular" options={{ headerShown: false }} />
+            <Stack.Screen name="reclamos" options={{ headerShown: false }} />
+            <Stack.Screen name="capacitaciones" options={{ headerShown: false }} />
+            <Stack.Screen name="entrenamiento" options={{ headerShown: false }} />
+            <Stack.Screen name="evaluaciones" options={{ headerShown: false }} />
+            <Stack.Screen name="perfil/puntos" options={{ headerShown: false }} />
           </Stack>
         </AuthProvider>
       </QueryClientProvider>

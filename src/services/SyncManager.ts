@@ -39,17 +39,25 @@ export class SyncManager {
               const formData = new FormData();
               Object.keys(item.data).forEach(key => {
                 if (key.endsWith('Uri') && item.data[key]) {
-                  const fileName = key.includes('audio') ? 'audio.m4a' : (key.includes('video') ? 'video.mp4' : 'photo.jpg');
-                  const type = key.includes('audio') ? 'audio/m4a' : (key.includes('video') ? 'video/mp4' : 'image/jpeg');
-                  const fieldName = key.replace('Uri', ''); // ej. audioUri -> audio
+                  const fileName = key.includes('audio')
+                    ? 'audio.m4a'
+                    : key.includes('Video') || key.includes('video')
+                      ? 'video.mp4'
+                      : 'photo.jpg';
+                  const type = key.includes('audio')
+                    ? 'audio/m4a'
+                    : key.includes('Video') || key.includes('video')
+                      ? 'video/mp4'
+                      : 'image/jpeg';
+                  const fieldName = key.replace(/Uri$/, '');
                   
                   formData.append(fieldName, {
                     uri: item.data[key],
                     name: fileName,
                     type: type,
                   } as any);
-                } else {
-                  formData.append(key, item.data[key]);
+                } else if (item.data[key] !== undefined && item.data[key] !== null) {
+                  formData.append(key, String(item.data[key]));
                 }
               });
               config.data = formData;

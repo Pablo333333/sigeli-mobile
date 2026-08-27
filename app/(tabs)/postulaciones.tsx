@@ -1,162 +1,303 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { usePostulaciones } from '../../src/hooks/usePostulaciones';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { TimelineItem } from '../../src/components/TimelineItem';
 import { useAuth } from '../../src/context/AuthContext';
+import { canAccess, isDirectiva } from '../../src/utils/roles';
+import api from '../../src/services/api';
+import { Theme } from '../../src/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PostulacionesScreen() {
   const { user } = useAuth();
-  const { data: postulaciones, isLoading, error } = usePostulaciones(user?.id || '');
+  const router = useRouter();
+  const [postulaciones, setPostulaciones] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const directiva = isDirectiva(user?.role);
+  const canPostularTerceros = canAccess(user?.role, 'postularTerceros');
 
-  if (isLoading) {
+  const load = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      let data: any[] = [];
+      if (directiva || user?.role === 'EMPRESA' || user?.role === 'ADMIN') {
+        const res = await api.get('/postulaciones');
+        data = Array.isArray(res.data) ? res.data : [];
+      } else if (user?.id) {
+        const res = await api.get(`/postulaciones/usuario/${user.id}`);
+        data = Array.isArray(res.data) ? res.data : [];
+      }
+      setPostulaciones(data);
+    } catch (e) {
+      console.error(e);
+      setPostulaciones([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [user?.id, user?.role]),
+  );
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <Text style={styles.infoText}>Cargando tus procesos...</Text>
-      </View>
-    );
-  }
-
-  // Si hay un error explícito o el formato recibido no es un array válido, mostramos el estado vacío
-  if (error || !postulaciones || !Array.isArray(postulaciones) || postulaciones.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.infoText}>No se encontraron postulaciones activas.</Text>
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
+        <Text style={styles.infoText}>Cargando procesos...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.mainTitle}>Mis Procesos de Selección</Text>
-      
-      {/* Usamos optional chaining y validación de array por seguridad extrema */}
-      {Array.isArray(postulaciones) && postulaciones.map((postulacion: any) => (
-        <View key={postulacion?.id || Math.random().toString()} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.ofertaTitle}>{postulacion?.oferta?.title || 'Oferta sin título'}</Text>
-            <Text style={styles.sectorText}>{postulacion?.oferta?.sector || 'Sector no especificado'}</Text>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+        }
+      >
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.mainTitle}>
+              {directiva ? 'Seguimiento comunal' : 'Mis Procesos de Selección'}
+            </Text>
+            <Text style={styles.subtitle}>
+              Timeline Antamina desde presentación de CV hasta subida al trabajo
+            </Text>
           </View>
-
-          <View style={styles.timelineContainer}>
-            {/* Validamos que exista timeline y sea un array antes de recorrerlo */}
-            {Array.isArray(postulacion?.timeline) ? postulacion.timeline.map((item: any, index: number) => (
-              <TimelineItem
-                key={index}
-                status={item?.status || 'Pendiente'}
-                date={item?.date || 'Fecha no disponible'}
-                notes={item?.notes || ''}
-                isFirst={index === 0}
-                isLast={index === (postulacion.timeline?.length || 1) - 1}
-                isCompleted={true}
-              />
-            )) : (
-              <Text style={styles.pendingText}>Iniciando proceso...</Text>
-            )}
-            
-            {/* Si no está contratado ni rechazado, mostramos el siguiente paso pendiente */}
-            {postulacion?.status !== 'CONTRATADO' && postulacion?.status !== 'RECHAZADO' && (
-              <View style={styles.pendingStep}>
-                <View style={styles.pendingCircle} />
-                <Text style={styles.pendingText}>Siguiente paso en evaluación...</Text>
-              </View>
-            )}
-          </View>
-
-          {postulacion?.status === 'CONTRATADO' && (
-            <View style={styles.successBanner}>
-              <Text style={styles.successText}>¡Felicidades! Proceso Completado 🎉</Text>
-            </View>
-          )}
         </View>
-      ))}
-    </ScrollView>
+
+        {canPostularTerceros && (
+          <TouchableOpacity
+            style={styles.postularBtn}
+            onPress={() => router.push('/postular' as any)}
+          >
+            <Ionicons name="person-add" size={22} color="white" />
+            <Text style={styles.postularBtnText}>Postular comunero a oferta</Text>
+          </TouchableOpacity>
+        )}
+
+        {postulaciones.length === 0 ? (
+          <View style={styles.centerEmpty}>
+            <Ionicons name="time-outline" size={48} color={Theme.colors.border} />
+            <Text style={styles.infoText}>No se encontraron postulaciones activas.</Text>
+          </View>
+        ) : (
+          postulaciones.map((postulacion) => {
+            const visual = Array.isArray(postulacion.visualTimeline)
+              ? postulacion.visualTimeline.filter((s: any) => s.stage !== 'RECHAZADO' || postulacion.status === 'RECHAZADO')
+              : [];
+
+            return (
+              <View key={postulacion.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.ofertaTitle}>
+                    {postulacion?.oferta?.title || 'Oferta sin título'}
+                  </Text>
+                  <Text style={styles.sectorText}>
+                    {postulacion?.oferta?.companyName ||
+                      postulacion?.oferta?.sector ||
+                      'Sector no especificado'}
+                  </Text>
+                  {directiva && (
+                    <Text style={styles.candidato}>
+                      Candidato: {postulacion?.user?.fullName} ({postulacion?.user?.dni})
+                    </Text>
+                  )}
+                  {postulacion?.submittedBy && (
+                    <Text style={styles.enviadoPor}>
+                      Enviado por: {postulacion.submittedBy.fullName} (
+                      {postulacion.submittedBy.role})
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.timelineContainer}>
+                  {visual.length > 0 ? (
+                    visual.map((item: any, index: number) => (
+                      <TimelineItem
+                        key={`${item.stage}-${index}`}
+                        status={item.label || item.stage}
+                        date={item.lastEvent?.date}
+                        notes={item.lastEvent?.notes}
+                        subStatus={item.lastEvent?.subStatus}
+                        isLast={index === visual.length - 1}
+                        state={item.state || 'pending'}
+                      />
+                    ))
+                  ) : (
+                    <Text style={styles.pendingText}>Iniciando proceso...</Text>
+                  )}
+                </View>
+
+                {postulacion?.status === 'CONTRATADO' && (
+                  <View style={styles.successBanner}>
+                    <Text style={styles.successText}>Proceso completado — subida al trabajo</Text>
+                  </View>
+                )}
+                {postulacion?.status === 'RECHAZADO' && (
+                  <View style={[styles.successBanner, styles.rejectBanner]}>
+                    <Text style={styles.successText}>Proceso desestimado</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.chatLink}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/chat',
+                      params: { postulacionId: postulacion.id },
+                    } as any)
+                  }
+                >
+                  <Ionicons name="chatbubbles" size={18} color={Theme.colors.primary} />
+                  <Text style={styles.chatLinkText}>Comunicaciones del proceso</Text>
+                  <Ionicons name="chevron-forward" size={18} color={Theme.colors.border} />
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFC',
+    backgroundColor: Theme.colors.background,
+  },
+  content: {
     padding: 15,
+    paddingBottom: 40,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F7FAFC',
+    backgroundColor: Theme.colors.background,
+  },
+  centerEmpty: {
+    alignItems: 'center',
+    marginTop: 48,
+    gap: 12,
   },
   infoText: {
-    fontSize: 16,
-    color: '#718096',
+    color: Theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  headerRow: {
+    marginBottom: 12,
   },
   mainTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2D3748',
-    marginBottom: 20,
-    marginTop: 10,
+    fontWeight: '800',
+    color: Theme.colors.text,
   },
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cardHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingBottom: 15,
-    marginBottom: 20,
-  },
-  ofertaTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2D3748',
-  },
-  sectorText: {
-    fontSize: 14,
-    color: '#718096',
+  subtitle: {
+    fontSize: 13,
+    color: Theme.colors.textSecondary,
     marginTop: 4,
   },
-  timelineContainer: {
-    paddingLeft: 5,
-  },
-  pendingStep: {
+  postularBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: -10,
-    paddingBottom: 10,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Theme.colors.primary,
+    minHeight: 54,
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  pendingCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#CBD5E0',
-    marginRight: 20,
-    marginLeft: 2,
+  postularBtnText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  cardHeader: {
+    marginBottom: 14,
+  },
+  ofertaTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Theme.colors.text,
+  },
+  sectorText: {
+    fontSize: 13,
+    color: Theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  candidato: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Theme.colors.primary,
+  },
+  enviadoPor: {
+    marginTop: 4,
+    fontSize: 12,
+    color: Theme.colors.textSecondary,
+  },
+  timelineContainer: {
+    paddingLeft: 4,
   },
   pendingText: {
-    fontSize: 14,
-    color: '#A0AEC0',
+    color: Theme.colors.textSecondary,
     fontStyle: 'italic',
   },
   successBanner: {
-    backgroundColor: '#F0FFF4',
+    marginTop: 8,
+    backgroundColor: Theme.colors.success + '18',
     padding: 12,
-    borderRadius: 8,
-    marginTop: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#C6F6D5',
+    borderRadius: 10,
+  },
+  rejectBanner: {
+    backgroundColor: Theme.colors.danger + '18',
   },
   successText: {
-    color: '#2F855A',
-    fontWeight: 'bold',
-  }
+    color: Theme.colors.text,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  chatLink: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: Theme.colors.primary + '10',
+  },
+  chatLinkText: {
+    flex: 1,
+    color: Theme.colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });
