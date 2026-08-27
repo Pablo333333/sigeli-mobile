@@ -12,7 +12,7 @@ type Props = {
 };
 
 const logoSource = USE_CUSTOM_LOGO
-  ? require('../../../assets/brand/logo.png')
+  ? require('../../assets/brand/logo.png')
   : null;
 
 /**
